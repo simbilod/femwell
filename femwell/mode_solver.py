@@ -7,6 +7,9 @@ from skfem import BilinearForm, Basis, ElementTriN1, ElementTriN2, ElementDG, El
     ElementTriP2, ElementVector, Mesh, Functional, LinearForm, condense, solve
 from skfem.helpers import curl, grad, dot, inner, cross
 
+from collections.abc import Iterable
+from itertools import permutations
+
 
 def compute_modes(basis_epsilon_r, epsilon_r, wavelength, mu_r, num_modes, order=1):
     k0 = 2 * np.pi / wavelength
@@ -173,23 +176,7 @@ def calculate_coupling_coefficient(basis_epsilon, delta_epsilon, basis, E_i, E_j
     return overlap.assemble(basis, E_i=basis.interpolate(E_i), E_j=basis.interpolate(E_j),
                             delta_epsilon=basis_epsilon.interpolate(delta_epsilon))
 
-
-def calculate_te_frac(basis, x):
-    @Functional
-    def ex(w):
-        return np.abs(w.E[0][0]) ** 2
-
-    @Functional
-    def ey(w):
-        return np.abs(w.E[0][1]) ** 2
-
-    ex_sum = ex.assemble(basis, E=basis.interpolate(x))
-    ey_sum = ey.assemble(basis, E=basis.interpolate(x))
-
-    return ex_sum / (ex_sum + ey_sum)
-
-
-def plot_mode(basis, mode, plot_vectors=False, colorbar=True, title='E', direction='y'):
+def plot_mode(basis, mode, plot_vectors=False, colorbar=True, title='E', direction='y', field_components='x'):
     from mpl_toolkits.axes_grid1 import make_axes_locatable
 
     (et, et_basis), (ez, ez_basis) = basis.split(mode)
@@ -212,20 +199,29 @@ def plot_mode(basis, mode, plot_vectors=False, colorbar=True, title='E', directi
     et_xy = plot_basis.project(et_basis.interpolate(et))
     (et_x, et_x_basis), (et_y, et_y_basis) = plot_basis.split(et_xy)
 
-    rc = (3, 1) if direction != 'x' else (1, 3)
-    fig, axs = plt.subplots(*rc, subplot_kw=dict(aspect=1))
+    rc = (len(field_components), 1) if direction != 'x' else (1, len(field_components))
+    if rc == (1,1):
+        fig, axs = plt.subplots(1, 1, subplot_kw=dict(aspect=1))
+        axs = [axs]
+    else:
+        fig, axs = plt.subplots(*rc, subplot_kw=dict(aspect=1))
     for ax in axs:
         for subdomain in basis.mesh.subdomains.keys() - {'gmsh:bounding_entities'}:
             basis.mesh.restrict(subdomain).draw(ax=ax, boundaries_only=True)
 
-    for ax, component in zip(axs, 'xyz'):
+    for ax, component in zip(axs, field_components):
         ax.set_title(f'${title}_{component}$')
-
-    absmax = np.max(np.abs(mode)) if colorbar == 'same' else None
-    absmin = - np.max(np.abs(mode)) if colorbar == 'same' else None
-    et_x_basis.plot(et_x, shading='gouraud', ax=axs[0], vmin=absmin, vmax=absmax)
-    et_y_basis.plot(et_y, shading='gouraud', ax=axs[1], vmin=absmin, vmax=absmax)
-    ez_basis.plot(ez, shading='gouraud', ax=axs[2], vmin=absmin, vmax=absmax)
+    ax_i = 0
+    if 'x' in field_components:
+        et_x_basis.plot(et_x, shading='gouraud', ax=axs[ax_i])  # , vmin=np.min(mode), vmax=np.max(mode))
+        ax_i += 1
+    if 'y' in field_components:
+        et_y_basis.plot(et_y, shading='gouraud', ax=axs[ax_i])  # , vmin=np.min(mode), vmax=np.max(mode))
+        ax_i += 1
+    if 'z' in field_components:
+        ez_basis.plot(ez, shading='gouraud', ax=axs[ax_i])  # , vmin=np.min(mode), vmax=np.max(mode))
+    if field_components not in [combo for i in range(1, len(field_components) + 1) for combo in permutations(field_components, i) ]:
+        raise ValueError("\"field_components\" argument must be string containing x and/or y and/or z.")
 
     if colorbar:
         if colorbar == 'same':
