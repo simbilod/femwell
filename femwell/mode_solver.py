@@ -61,12 +61,16 @@ def compute_modes(basis_epsilon_r, epsilon_r, wavelength, mu_r, num_modes, order
             lams.append(eps.getEigenpair(i, xr, xi))
             xs.append(np.array(xr) + 1j * np.array(xi))
 
-        xs = np.array(xs, dtype=complex)
+        xs = np.array(xs, dtype=np.complex128)
+        print(xs.dtype)
         lams = np.array(lams)
         return lams, xs.T
 
     lams, xs = solve(*condense(A,B,D=basis.get_dofs()), solver=solver_slepc)
+    print(xs.dtype)
     xs = xs.T
+    print(xs.dtype)
+    print(lams[:, np.newaxis].dtype, xs[:, basis.split_indices()[1]].dtype)
     xs[:, basis.split_indices()[1]] /= 1j * np.sqrt(lams[:, np.newaxis])  # undo the scaling E_3,new = beta * E_3
 
     for i, lam in enumerate(lams):
