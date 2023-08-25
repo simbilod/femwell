@@ -190,7 +190,7 @@ print(f"The effective index of the SiN mode is {np.real(modes[1].n_eff)}")
 
 # %% [markdown]
 
-# ## 3. Using `argsort_modes_by_power_in_elements`
+# ## 3. Sorting modes by overlap
 
 # This allows to choose a mode that has the biggest overlap with
 # a given structure.
@@ -202,16 +202,13 @@ print(f"The effective index of the SiN mode is {np.real(modes[1].n_eff)}")
 # You can also give it directly the selection_basis of the
 # are of interest.
 
-# A requirement for using `argsort_modes_by_power_in_elements` is to
-# calculate the H field of the found modes.
-
 # %%
 
 modes = compute_modes(basis0, epsilon, wavelength=wavelength, num_modes=4)
 
 # Option 1: using an element name
 
-modes_sorted = modes.sorted(key=lambda mode: mode.calculate_power(elements="sin"))
+modes_sorted = modes.sorted(key=lambda mode: -mode.calculate_power(elements="sin"))
 
 modes_sorted[0].show(modes_sorted[0].E.real, direction="x")
 
